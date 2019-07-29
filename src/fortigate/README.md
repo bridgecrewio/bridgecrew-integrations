@@ -1,4 +1,4 @@
-# docker-Fortigate-integration
+# Docker-Fortigate-Integration
 The docker contains a running Logstash agent. The docker is collecting data from Fortigate firewall (using syslog) and sends the log data to Bridgecrew cloud in an encrypted secured manner.
 
 ## Fortigate
