@@ -5,4 +5,4 @@ This repository contains all the integrations that supported by Bridgecrew
 * [Fortigate](https://github.com/bridgecrewio/bridgecrew-integrations/blob/master/src/fortigate/README.md)
 
 
-![Integration architecture](docs/arch-flow.png)
+![Integration architecture](docs/archFlow.png)
