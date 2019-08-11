@@ -11,7 +11,7 @@ jobs:
 
     steps:
       - checkout:
-          path: ~/dockers-integrations/src/fortigate
+          path: ~/dockers-integrations/fortigate
       - run:
           name: Login docker hub
           command: |
@@ -19,7 +19,8 @@ jobs:
       - run:
           name: Build image
           command: |
-            cd fortigate
+            cd ~/dockers-integrations/fortigate
+            ls
             docker build . --tag $REPO_NAME/$IMAGE_NAME:$IMAGE_VERSION --tag $REPO_NAME/$IMAGE_NAME:latest --tag $REPO_NAME/$IMAGE_NAME:$IMAGE_VERSION.$CIRCLE_BUILD_NUM
       - run:
           name: Push Docker image
@@ -33,7 +34,7 @@ jobs:
 
   circleci-image-build-pulse:
     machine: true
-    working_directory: ~/dockers-integrations
+    working_directory: ~/dockers-integrations/pulse
     environment:
       REPO_NAME: bridgecrew
       IMAGE_NAME: pulse-integration
@@ -41,7 +42,7 @@ jobs:
 
     steps:
       - checkout:
-          path: ~/dockers-integrations/src/pulse
+          path: ~/dockers-integrations/
       - run:
           name: Login docker hub
           command: |
@@ -49,7 +50,8 @@ jobs:
       - run:
           name: Build image
           command: |
-            cd pulse
+            cd ~/dockers-integrations/pulse
+            ls
             docker build . --tag $REPO_NAME/$IMAGE_NAME:$IMAGE_VERSION --tag $REPO_NAME/$IMAGE_NAME:latest --tag $REPO_NAME/$IMAGE_NAME:$IMAGE_VERSION.$CIRCLE_BUILD_NUM
       - run:
           name: Push Docker image
