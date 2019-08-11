@@ -32,5 +32,5 @@ Verify that `iptables` is configured to allow incoming traffic on port 9910.
 3. Verify docker by running the following command: ``` docker info ```
 4. Run syslog-integration docker by executing:
 ```sh
-docker run -d -p 9910:9910/udp -e BC_CUSTOMER_NAME=[REPLACE_WITH_CUSTOMER_NAME] -e BC_API_TOKEN=[REPLACE_WITH_API_TOKEN] -e BC_URL="https://www.bridgecrew.cloud/api/v1/integrations/logstash" bridgecrew/syslog-integration
+docker run -d -p 9910:9910/udp -e BC_CUSTOMER_NAME=[REPLACE_WITH_CUSTOMER_NAME] -e BC_API_TOKEN=[REPLACE_WITH_API_TOKEN] -e BC_URL="https://logstash.bridgecrew.cloud/logstash" bridgecrew/fortigate-integration
 ```
