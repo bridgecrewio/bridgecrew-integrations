@@ -19,6 +19,7 @@ jobs:
       - run:
           name: Build image
           command: |
+            cd fortigate
             docker build . --tag $REPO_NAME/$IMAGE_NAME:$IMAGE_VERSION --tag $REPO_NAME/$IMAGE_NAME:latest --tag $REPO_NAME/$IMAGE_NAME:$IMAGE_VERSION.$CIRCLE_BUILD_NUM
       - run:
           name: Push Docker image
@@ -48,6 +49,7 @@ jobs:
       - run:
           name: Build image
           command: |
+            cd pulse
             docker build . --tag $REPO_NAME/$IMAGE_NAME:$IMAGE_VERSION --tag $REPO_NAME/$IMAGE_NAME:latest --tag $REPO_NAME/$IMAGE_NAME:$IMAGE_VERSION.$CIRCLE_BUILD_NUM
       - run:
           name: Push Docker image
