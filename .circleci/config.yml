@@ -58,3 +58,10 @@ jobs:
       - run:
           name: Logout of docker hub
           command: sudo docker logout
+
+workflows:
+  version: 2
+  image-builder:
+    jobs:
+      - circleci-image-build-pulse
+      - circleci-image-build-fortigate
