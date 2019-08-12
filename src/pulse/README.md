@@ -10,16 +10,18 @@ The installation includes 2 steps:
  ### 1. Pulse Secure Traffic Manager syslog configuration
  Follow PulseSecure export guide as described here [here](https://docs.pulsesecure.net/WebHelp/PvTM/18.3/ps-vtm-18.3-userguide/ps-vtm-18.3-userguide/KeyFeatures/KeyFeatures.htm#XREF_24697_Exporting).
     
-#### Configure transaction metadata on PulseSecure
+#### Configure transaction metadata configuration on PulseSecure
 | Key | Description| 
 |-----|------------|
 | transaction_export!endpoint | IP_SERVER_DOCKER:PORT (For example -localhost:9910)|
 | transaction_export!tls | No |
 | transaction_export!enabled | Yes |   
 
-#### Log Files
-**log_export!endpoint:** IP_SERVER_DOCKER:PORT (For example -localhost:9910)
-**log_export!enabled:** Yes
+#### Log files configuration on PulseSecure
+| Key | Description| 
+|-----|------------|
+| log_export!endpoint | IP_SERVER_DOCKER:PORT (For example -localhost:9910)|
+| log_export!enabled | Yes |
 
 
 ### 2. Install the syslog integration docker 
