@@ -1,6 +1,9 @@
 # Docker-Pulse Secure VPN-Integration
 The docker contains a running Logstash agent. The docker is collecting data from [Pulse Secure Virtual Traffic Manager](https://www.pulsesecure.net/) (using syslog) and sends the log data to Bridgecrew cloud in an encrypted secured manner.
 
+## Architecture 
+![Integration architecture](../../docs/PulseSecureArc.png)
+
 ## Pulse Secure
 The installation includes 2 steps:   
  1) Configuring the Traffic Manager to Export Data to Logstash
