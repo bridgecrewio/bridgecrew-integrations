@@ -37,5 +37,5 @@ Verify that `iptables` is configured to allow incoming traffic on port `9910`.
 docker run -d -p 9910:9910 -e BC_CUSTOMER_NAME=[REPLACE_WITH_CUSTOMER_NAME] -e BC_API_TOKEN=[REPLACE_WITH_API_TOKEN] -e BC_URL="https://logstash.bridgecrew.cloud/logstash" bridgecrew/pulse-integration
 ```
 #### Network settings:
-logstash.bridgecrew.cloud OP address is: `3.225.57.229`
+logstash.bridgecrew.cloud IP address is: `3.225.57.229`
 To forward data to that address make sure you enable `HTTPS` (port `443`) communication from the docker host to the logstash server.
