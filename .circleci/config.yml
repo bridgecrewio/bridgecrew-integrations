@@ -94,3 +94,4 @@ workflows:
     jobs:
       - circleci-image-build-pulse
       - circleci-image-build-fortigate
+      - circleci-image-build-linux-auth
