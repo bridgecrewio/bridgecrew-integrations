@@ -93,7 +93,7 @@ jobs:
     working_directory: ~/dockers-integrations/src/vault
     environment:
       REPO_NAME: bridgecrew
-      IMAGE_NAME: VAULT-integration
+      IMAGE_NAME: vault-integration
       IMAGE_VERSION: 1
 
     steps:
