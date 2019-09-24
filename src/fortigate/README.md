@@ -29,7 +29,7 @@ Verify that `iptables` is configured to allow incoming traffic on port 9910.
 
 #### Installation
 
-1. ssh into a server where the logstash-docker should be deployed
+1. SSH into a server where the logstash-docker should be deployed
 2. Install docker
 3. Verify docker by running the following command: ``` docker info ```
 4. Run syslog-integration docker by executing:
