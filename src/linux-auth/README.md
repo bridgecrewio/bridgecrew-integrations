@@ -1,4 +1,6 @@
 # Docker-Linux-Auth-Integration
+![Docker Pulls](https://img.shields.io/docker/pulls/bridgecrew/linux-auth-integration)
+
 This docker contains a Logstash agent that enables secure transport of log data back to Bridgecrew Console. It is set to collect data from Linux's auth.log file (using syslog) and send it to Bridgecrew in an encrypted and secure.
 
 ## Linux auth
