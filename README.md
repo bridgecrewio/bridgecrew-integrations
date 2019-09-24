@@ -7,6 +7,3 @@ This repository contains all SIEM integrations that are supported by Bridgecrew
 * [Fortigate](https://github.com/bridgecrewio/bridgecrew-integrations/blob/master/src/fortigate/README.md)
 * [Linux Auth](https://github.com/bridgecrewio/bridgecrew-integrations/blob/master/src/linux-auth/README.md)
 
-# Architecture Flow
- 
-![Integration architecture](docs/archFlow.png)
