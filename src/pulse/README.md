@@ -1,5 +1,5 @@
 # Docker-Pulse Secure VPN-Integration
-[![Docker Pulls](https://img.shields.io/docker/pulls/bridgecrew/pulse-integration)](https://hub.docker.com/r/bridgecrew/pulse-integration)
+[![Docker Pulls](https://img.shields.io/docker/pulls/bridgecrew/fortigate-integration)](https://hub.docker.com/r/bridgecrew/fortigate-integration)
 
 The docker contains a running Logstash agent. The docker is collecting data from [Pulse Secure Virtual Traffic Manager](https://www.pulsesecure.net/) (using syslog) and sends the log data to Bridgecrew cloud in an encrypted secured manner.
 
