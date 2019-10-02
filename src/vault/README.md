@@ -27,7 +27,7 @@ docker run -d -p 9910:9910 -e BC_CUSTOMER_NAME=[REPLACE_WITH_CUSTOMER_NAME] -e B
 To enable auditing replace the string `[REPLACE_WITH_DOCKER_HOST_ADDRESS]` and execute the following command:
 ```bash
 ./vault audit enable socket
-vault audit enable socket address=[REPLACE_WITH_DOCKER_HOST_ADDRESS]:9910 socket_type=tcp format=jso
+vault audit enable socket address=[REPLACE_WITH_DOCKER_HOST_ADDRESS]:9910 socket_type=tcp format=json
 ```
 
 Full vault configuration guide can be found [here](https://www.vaultproject.io/docs/audit/socket.html).
