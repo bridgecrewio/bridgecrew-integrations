@@ -1,0 +1,15 @@
+version: '3.7'
+services:
+  filebeat:
+    image: bridgecrew/pan-os-integration:latest
+    user: root
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+  logstash:
+    image: bridgecrew/logstash-integration:latest
+    environment:
+      INTEGRATION_TYPE: pan-os
+      BC_CUSTOMER_NAME: ${BC_CUSTOMER_NAME}
+      BC_API_TOKEN: ${BC_API_TOKEN}
+      BC_URL: ${BC_URL}

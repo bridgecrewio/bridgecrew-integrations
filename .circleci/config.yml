@@ -117,6 +117,64 @@ jobs:
           name: Logout of docker hub
           command: sudo docker logout
 
+  circleci-image-build-pan-os:
+    machine: true
+    working_directory: ~/dockers-integrations/src/pan-os
+    environment:
+      REPO_NAME: bridgecrew
+      IMAGE_NAME: pan-os-integration
+      IMAGE_VERSION: 1
+
+    steps:
+      - checkout:
+          path: ~/dockers-integrations
+      - run:
+          name: Login docker hub
+          command: |
+            docker login -u $DOCKER_USER -p $DOCKER_PASS
+      - run:
+          name: Build image
+          command: |
+            docker build . --tag $REPO_NAME/$IMAGE_NAME:$IMAGE_VERSION --tag $REPO_NAME/$IMAGE_NAME:latest --tag $REPO_NAME/$IMAGE_NAME:$IMAGE_VERSION.$CIRCLE_BUILD_NUM
+      - run:
+          name: Push Docker image
+          command: |
+            sudo docker push $REPO_NAME/$IMAGE_NAME:$IMAGE_VERSION
+            sudo docker push $REPO_NAME/$IMAGE_NAME:latest
+            sudo docker push $REPO_NAME/$IMAGE_NAME:$IMAGE_VERSION.$CIRCLE_BUILD_NUM
+      - run:
+          name: Logout of docker hub
+          command: sudo docker logout
+
+  circleci-image-build-bridgecrew-logstash:
+    machine: true
+    working_directory: ~/dockers-integrations/src/send-to-bridgecrew
+    environment:
+      REPO_NAME: bridgecrew
+      IMAGE_NAME: logstash-integration
+      IMAGE_VERSION: 1
+
+    steps:
+      - checkout:
+          path: ~/dockers-integrations
+      - run:
+          name: Login docker hub
+          command: |
+            docker login -u $DOCKER_USER -p $DOCKER_PASS
+      - run:
+          name: Build image
+          command: |
+            docker build . --tag $REPO_NAME/$IMAGE_NAME:$IMAGE_VERSION --tag $REPO_NAME/$IMAGE_NAME:latest --tag $REPO_NAME/$IMAGE_NAME:$IMAGE_VERSION.$CIRCLE_BUILD_NUM
+      - run:
+          name: Push Docker image
+          command: |
+            sudo docker push $REPO_NAME/$IMAGE_NAME:$IMAGE_VERSION
+            sudo docker push $REPO_NAME/$IMAGE_NAME:latest
+            sudo docker push $REPO_NAME/$IMAGE_NAME:$IMAGE_VERSION.$CIRCLE_BUILD_NUM
+      - run:
+          name: Logout of docker hub
+          command: sudo docker logout
+
 workflows:
   version: 2
   image-builder:
@@ -125,3 +183,5 @@ workflows:
       - circleci-image-build-fortigate
       - circleci-image-build-linux-auth
       - circleci-image-build-vault
+      - circleci-image-build-pan-os
+      - circleci-image-build-bridgecrew-logstash
