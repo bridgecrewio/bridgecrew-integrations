@@ -2,12 +2,12 @@
 [![Docker Pulls](https://img.shields.io/docker/pulls/bridgecrew/pan-os-integration)](https://hub.docker.com/r/bridgecrew/pan-os-integration)
 
 ## Architecture 
-TODO
+![Integration architecture](../../docs/PAN-OS.png)
 
 ## Integration Steps
 The installation includes 2 steps:
 1. Deploy PAN-OS integration with docker-compose
-2. Enable auditing on PAN-OS server (TODO)
+2. Configure syslog monitoring on your PAN-OS and forward it to the instance
 
 ### Deploying the Integration Docker
 1. SSH to a server where the docker-compose should be deployed
@@ -38,4 +38,10 @@ The installation includes 2 steps:
     docker info
    ```
 
-Enable auditing of PAN-OS - TODO
+### Enable auditing of PAN-OS
+Please follow the official [Palo Alto Networks guide](https://docs.paloaltonetworks.com/pan-os/7-1/pan-os-admin/monitoring/use-syslog-for-monitoring/configure-syslog-monitoring).
+The relevant configurations:
+
+- `Syslog Server` - IP address of the docker's host
+- `Transport` - UDP
+- `Port` - 9001 
