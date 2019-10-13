@@ -1,4 +1,4 @@
-# Cisco Meraki firewall Integration
+# Cisco Meraki Firewall Integration
 [![Docker Pulls](https://img.shields.io/docker/pulls/bridgecrew/meraki-integration)](https://hub.docker.com/r/bridgecrew/meraki-integration)
 
 ## Integration Steps
