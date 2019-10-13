@@ -214,4 +214,4 @@ workflows:
       - circleci-image-build-vault
       - circleci-image-build-pan-os
       - circleci-image-build-bridgecrew-logstash
-      - circleci-image-build-bridgecrew-meraki
+      - circleci-image-build-meraki
