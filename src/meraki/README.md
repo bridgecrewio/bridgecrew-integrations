@@ -3,7 +3,7 @@
 
 ## Integration Steps
 1. Configure Meraki Logging
-2. Deploy Meraki Integration using docker-compose
+2. Deploy Meraki Integration using docker
 
 
 ### 1. Configure Meraki Logging
