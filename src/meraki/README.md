@@ -1,6 +1,9 @@
 # Cisco Meraki Firewall Integration
 [![Docker Pulls](https://img.shields.io/docker/pulls/bridgecrew/meraki-integration)](https://hub.docker.com/r/bridgecrew/meraki-integration)
 
+## Architecture 
+![Integration architecture](../../docs/MerakiArch.png)
+
 ## Integration Steps
 1. Configure Meraki Logging
 2. Deploy Meraki Integration using docker
