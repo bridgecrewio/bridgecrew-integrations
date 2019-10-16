@@ -29,6 +29,9 @@ docker pull bridgecrew/meraki-integration:latest
 docker run -d  -v /var/log:/var/log -e BC_CUSTOMER_NAME=[REPLACE_WITH_CUSTOMER_NAME] -e BC_API_TOKEN=[REPLACE_WITH_API_TOKEN] -e BC_URL="https://logstash.bridgecrew.cloud/logstash" bridgecrew/meraki-integration
 ```
 
+#### Network settings:
+logstash.bridgecrew.cloud IP address is: `3.225.57.229`
+To forward data to that address make sure you enable `HTTPS` (port `443`) communication from the docker host to the logstash server.
 
 #### Licenses: 
 GNU-2: https://github.com/cs3gallery/meraki_logstash/blob/master/LICENSE 
