@@ -302,3 +302,4 @@ workflows:
       - circleci-image-build-meraki
       - circleci-image-build-auth0
       - circleci-image-build-pan-os-http
+      - circleci-image-build-forti-authenticator
