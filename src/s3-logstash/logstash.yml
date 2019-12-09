@@ -1,2 +1,2 @@
 pipeline:
-  workers: 8
+  workers: 16
