@@ -1,0 +1,551 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Setup Basic OpenVPN Server and Client on Amazon Linux 2 for Testing.  This needs to be updated for OpenVPN Access Server as the logs are different that openvpn
+
+Parameters:
+  SSHKeyName:
+    Type: AWS::EC2::KeyPair::KeyName
+    Description: SSH Key for the OpenVPN Instance
+    ConstraintDescription: Must be the name of an existing EC2 KeyPair.
+
+  LatestAmiId:
+    Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
+    Default: '/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2'
+
+Resources:
+
+  # OpenVPN Server VPC
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.10.0.0/16
+      EnableDnsSupport: True
+      EnableDnsHostnames: True
+      Tags:
+      - Key: Name
+        Value: openvpn-test-vpc
+
+
+  PublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.10.0.0/24
+      Tags:
+      - Key: Name
+        Value: openvpn-test-pubSubnet
+
+
+  IGW:
+      Type: "AWS::EC2::InternetGateway"
+      Properties:
+        Tags:
+        - Key: Name
+          Value: openvpn-test-igw
+
+  RTB:
+      Type: "AWS::EC2::RouteTable"
+      Properties:
+        VpcId: !Ref VPC
+        Tags:
+          - Key: Name
+            Value: openvpn-test-rtb
+
+  AttachInternetGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref IGW
+
+  PublicRoute:
+    Type: "AWS::EC2::Route"
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref IGW
+      RouteTableId: !Ref RTB
+
+  SubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet
+      RouteTableId: !Ref RTB
+
+  OpenVPNSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: OpenVPN Server Security Group
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: udp
+          FromPort: 1194
+          ToPort: 1194
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0      
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+
+  # S3 bucket for OpenVPN config/secrets plus CustomResource to empty bucket on delete
+  S3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      AccessControl: Private
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+    DeletionPolicy: Delete
+
+  EmptyS3BucketLambdaExecutionRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action:
+              - "sts:AssumeRole"
+      Policies:
+        - PolicyName: LoggingPolicy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: "*"
+        - PolicyName: S3Policy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:List*
+                  - s3:DeleteObject
+                Resource: "*"
+
+  EmptyS3BucketLambdaFunction:
+    Type: "AWS::Lambda::Function"
+    Properties:
+      Code:
+        ZipFile: |
+          import cfnresponse
+          import boto3
+          def handler(event, context):
+              print(event)
+              print('boto version ' + boto3.__version__)
+              # Globals
+              responseData = {}
+              ResponseStatus = cfnresponse.SUCCESS
+              s3bucketName = event['ResourceProperties']['s3bucketName']
+              if event['RequestType'] == 'Create':
+                  responseData['Message'] = "Resource creation successful!"
+              elif event['RequestType'] == 'Update':
+                  responseData['Message'] = "Resource update successful!"
+              elif event['RequestType'] == 'Delete':
+                  # Need to empty the S3 bucket before it is deleted
+                  s3 = boto3.resource('s3')
+                  bucket = s3.Bucket(s3bucketName)
+                  bucket.objects.all().delete()
+                  responseData['Message'] = "Resource deletion successful!"
+              cfnresponse.send(event, context, ResponseStatus, responseData)
+      Handler: index.handler
+      Runtime: python3.7
+      Role: !GetAtt EmptyS3BucketLambdaExecutionRole.Arn
+
+  EmptyS3Bucket:
+    Type: Custom::CustomResource
+    Properties:
+      ServiceToken: !GetAtt EmptyS3BucketLambdaFunction.Arn
+      s3bucketName: !Ref S3Bucket    
+
+  # IAM role to enable EC2 instances to access S3 bucket
+  EC2Role:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - ec2.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      Path: "/"
+
+  # This is the IAM policy which will be attached to our EC2 instance role
+  EC2Policy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: OpenVPNAccessPolicy
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Action:
+              - s3:*
+            Effect: Allow
+            Resource: !Join 
+              - ''
+              - - 'arn:aws:s3:::'
+                - !Ref S3Bucket
+                - /*   
+          # Allow instance to discover the planned EIP to attach in user-data
+          - Action:
+              - ec2:DescribeTags
+              - ec2:DescribeAddresses
+              - cloudformation:DescribeStacks
+            Effect: Allow
+            Resource: '*'
+
+      Roles:
+        - !Ref EC2Role
+
+  EC2InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: "/"
+      Roles:
+       - !Ref EC2Role
+
+  # The EC2 instance which will host OpenVPN
+  EIP:
+    Type: "AWS::EC2::EIP"
+    Properties:
+      InstanceId: !Ref OpenVPNInstance
+
+  OpenVPNInstance:
+    Type: "AWS::EC2::Instance"
+    DependsOn: S3Bucket
+    Properties:
+      ImageId: !Ref LatestAmiId
+      InstanceType: t2.micro
+      SourceDestCheck: false
+      KeyName: !Ref SSHKeyName
+      NetworkInterfaces: 
+      - DeviceIndex: "0" 
+        AssociatePublicIpAddress: "true"
+        GroupSet: 
+          - Ref: "OpenVPNSG"
+        SubnetId: 
+          Ref: "PublicSubnet"
+      IamInstanceProfile: !Ref EC2InstanceProfile
+      Tags:
+        -
+          Key: Name
+          Value: openvpn-test
+      UserData:
+          "Fn::Base64":
+            !Sub |
+              #!/bin/bash
+              yum -y update
+              yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
+              yum -y install openvpn easy-rsa yum-plugin-versionlock jq
+              yum versionlock openvpn
+              cp -Rl /usr/share/easy-rsa/3 /opt/easy-rsa
+
+              # Generate Secrets
+              cd /opt/easy-rsa
+              /opt/easy-rsa/easyrsa init-pki
+              /opt/easy-rsa/easyrsa --batch build-ca nopass
+              /opt/easy-rsa/easyrsa gen-dh
+              /opt/easy-rsa/easyrsa build-server-full server nopass
+              /opt/easy-rsa/easyrsa gen-crl
+              openvpn --genkey --secret pki/statictlssecret.key
+
+              # Configure Client - we will replace 'ENTER_PUBLIC_IP_HERE' during client cloud-init
+              echo "
+              client
+              dev tun
+              proto udp
+              remote ENTER_PUBLIC_IP_HERE 1194
+              sndbuf 0
+              rcvbuf 0
+              nobind
+              ###setenv opt block-outside-dns
+              #tls-client
+              #tls-version-min 1.2
+              #tls-cipher TLS-ECDHE-RSA-WITH-AES-128-GCM-SHA256:TLS-ECDHE-ECDSA-WITH-AES-128-GCM-SHA256:TLS-ECDHE-RSA-WITH-AES-256-GCM-SHA384:TLS-DHE-RSA-WITH-AES-256-CBC-SHA256
+              cipher AES-256-CBC
+              auth SHA512
+              resolv-retry infinite
+              #auth-retry none
+              nobind
+              persist-key
+              persist-tun
+              remote-cert-tls server
+              verb 6
+              " > /opt/easy-rsa/openvpn_client.conf
+
+              chmod 700 /opt/easy-rsa/openvpn_client.conf
+              chown root:root /opt/easy-rsa/openvpn_client.conf
+
+              cd /opt/easy-rsa
+              /opt/easy-rsa/easyrsa build-client-full client nopass
+
+              export clientKEY=$(cat /opt/easy-rsa/pki/private/client.key)
+              export clientCRT=$(cat /opt/easy-rsa/pki/issued/client.crt)
+              export clientCA=$(cat /opt/easy-rsa/pki/ca.crt)
+              export clientTLS=$(cat /opt/easy-rsa/pki/statictlssecret.key)
+
+              cat /opt/easy-rsa/openvpn_client.conf > /opt/easy-rsa/pki/openvpn_client.ovpn
+              echo "
+              <key>
+              $clientKEY
+              </key>
+              <cert>
+              $clientCRT
+              </cert>
+              <ca>
+              $clientCA
+              </ca>
+              key-direction 1
+              <tls-auth>
+              $clientTLS
+              </tls-auth>
+              " >> /opt/easy-rsa/pki/openvpn_client.ovpn
+
+              chmod 700 /opt/easy-rsa/pki/openvpn_client.ovpn
+              chown root:root /opt/easy-rsa/pki/openvpn_client.ovpn
+
+              # Configure Server
+              echo 'port 1194
+              proto udp
+              dev tun
+              server 172.16.0.0 255.255.252.0
+              #push "redirect-gateway def1"
+              push "redirect-gateway def1 bypass-dhcp"
+              push "dhcp-option DNS 8.8.4.4"
+              push "dhcp-option DNS 8.8.8.8"
+              sndbuf 0
+              rcvbuf 0
+              topology subnet
+              mssfix 1200
+              ca /opt/easy-rsa/pki/ca.crt
+              cert /opt/easy-rsa/pki/issued/server.crt
+              key /opt/easy-rsa/pki/private/server.key
+              dh /opt/easy-rsa/pki/dh.pem
+              crl-verify /opt/easy-rsa/pki/crl.pem
+              tls-server
+              tls-auth /opt/easy-rsa/pki/statictlssecret.key 0
+              tls-version-min 1.2
+              tls-cipher TLS-ECDHE-RSA-WITH-AES-128-GCM-SHA256:TLS-ECDHE-ECDSA-WITH-AES-128-GCM-SHA256:TLS-ECDHE-RSA-WITH-AES-256-GCM-SHA384:TLS-DHE-RSA-WITH-AES-256-CBC-SHA256
+              cipher AES-256-CBC
+              auth SHA512
+              ifconfig-pool-persist ipp.txt
+              keepalive 10 120
+              ping-timer-rem
+              persist-key
+              persist-tun
+              status openvpn-status.log
+              log-append /var/log/openvpn.log
+              # verb 3    ### Changed to 6 to troubleshoot
+              verb 6
+              max-clients 5
+              user nobody
+              group nobody' > /etc/openvpn/server/server.conf
+
+              chmod 644 /etc/openvpn/server/server.conf
+              chown root:root /etc/openvpn/server/server.conf
+
+              echo "net.ipv4.ip_forward = 1" >> /etc/sysctl.conf
+              sysctl -p
+              iptables -t nat -A POSTROUTING -s 172.16.0.0/22 -o eth0 -j MASQUERADE
+              systemctl enable openvpn-server@server
+              systemctl start openvpn-server@server
+
+              # Upload client keys to S3
+              aws s3 cp /opt/easy-rsa/pki/openvpn_client.ovpn s3://${S3Bucket}/client/openvpn_client.ovpn
+
+              /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource OpenVPNInstance --region ${AWS::Region}
+
+    # The CloudFormation stack will wait to mark the EC2OpenVPNInstance as CREATE_COMPLETE until we receive a signal from the instance, or 10 minutes elapses.
+    CreationPolicy:
+      ResourceSignal:
+        Count: "1"
+        Timeout: PT10M
+
+  ####################################################
+  ### OpenVPN Client (in a separate VPC) for testing #
+  ####################################################
+
+  ClientVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.20.0.0/16
+      Tags:
+      - Key: Name
+        Value: openvpn-client-test-vpc
+
+  ClientPublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref ClientVPC
+      CidrBlock: 10.20.0.0/24
+      Tags:
+      - Key: Name
+        Value: openvpn-client-test-pubSubnet
+
+
+  ClientIGW:
+      Type: "AWS::EC2::InternetGateway"
+      Properties:
+        Tags:
+        - Key: Name
+          Value: openvpn-client-test-igw
+
+  ClientRTB:
+      Type: "AWS::EC2::RouteTable"
+      Properties:
+        VpcId: !Ref ClientVPC
+        Tags:
+          - Key: Name
+            Value: openvpn-client-test-rtb
+
+  ClientAttachInternetGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref ClientVPC
+      InternetGatewayId: !Ref ClientIGW
+
+  ClientPublicRoute:
+    Type: "AWS::EC2::Route"
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref ClientIGW
+      RouteTableId: !Ref ClientRTB
+
+  ClientSubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref ClientPublicSubnet
+      RouteTableId: !Ref ClientRTB
+
+  ClientSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: OpenVPN Client Security Group
+      VpcId: !Ref ClientVPC
+      SecurityGroupIngress:   
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+
+  ClientInstance:
+    Type: "AWS::EC2::Instance"
+    DependsOn: OpenVPNInstance
+    Properties:
+      ImageId: !Ref LatestAmiId
+      InstanceType: t2.micro
+      SourceDestCheck: false
+      KeyName: !Ref SSHKeyName
+      NetworkInterfaces: 
+      - DeviceIndex: "0" 
+        AssociatePublicIpAddress: "true"
+        GroupSet: 
+          - Ref: "ClientSG"
+        SubnetId: 
+          Ref: "ClientPublicSubnet"
+      IamInstanceProfile: !Ref EC2InstanceProfile
+      Tags:
+        -
+          Key: Name
+          Value: openvpn-client-test
+      UserData:
+          "Fn::Base64":
+            !Sub |
+              #!/bin/bash
+              yum -y update
+              yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
+              yum -y install openvpn yum-plugin-versionlock jq
+              yum versionlock openvpn
+
+              # Configure Client 
+              aws s3 cp s3://${S3Bucket}/client/openvpn_client.ovpn /etc/openvpn/client/openvpn_client.ovpn
+
+              # Determine EIP which will be attached (it is not attached until cloud-init completes) 
+              REGION=$(curl --silent http://169.254.169.254/latest/dynamic/instance-identity/document | jq -r .region)
+              INSTANCEID=$(curl --silent http://169.254.169.254/latest/dynamic/instance-identity/document | jq -r .instanceId)
+              STACKNAME=$(aws ec2 describe-tags --output text --region $REGION --filters "Name=key,Values=aws:cloudformation:stack-name" "Name=resource-type,Values=instance" "Name=resource-id,Values=$INSTANCEID" --query 'Tags[0].Value')
+              PUBLIC_IPV4=$(aws ec2 describe-addresses --output text --region $REGION --filters "Name=tag:aws:cloudformation:logical-id,Values=EIP" "Name=tag:aws:cloudformation:stack-name,Values=$STACKNAME" --query 'Addresses[*].PublicIp')
+              
+              echo "The OpenVPN Server public IP I found is $PUBLIC_IPV4"
+
+              SERVER_PRIVATE_IP=$(aws cloudformation describe-stacks --output text --region $REGION --stack-name $STACKNAME --query "Stacks[0].Outputs[?OutputKey=='ServerPrivateIP'].OutputValue")
+              
+              # Add Server public IP to client config
+              sed -i -e "s/ENTER_PUBLIC_IP_HERE/$PUBLIC_IPV4/g" /etc/openvpn/client/openvpn_client.ovpn
+
+              # Add rules so your SSH doesn't die when openvpn starts
+              ip rule add from $(ip route get 1 | grep -Po '(?<=src )(\S+)') table 128
+              ip route add table 128 to $(ip route get 1 | grep -Po '(?<=src )(\S+)')/32 dev $(ip -4 route ls | grep default | grep -Po '(?<=dev )(\S+)')
+              ip route add table 128 default via $(ip -4 route ls | grep default | grep -Po '(?<=via )(\S+)')
+
+              echo '#!/bin/bash
+
+              echo "#################################################################"
+              echo "Test the connection with this command:"
+              echo ""
+              echo "sudo su -"
+              echo "ping 10.10.0.1    # VPN servers VPC should NOT respond"
+              echo ""
+              echo "openvpn --config /etc/openvpn/client/openvpn_client.ovpn --daemon"
+              echo ""
+              echo "cat /var/log/messages   # Look for UDP WRITE and TUN READ to see it is passing data"
+              echo "If you get an ip route add failed message, try killing and restarting openvpn client"
+              echo "ping 10.10.0.1    # VPN servers VPC should now be reachable!"
+
+
+              echo "#################################################################"' > /etc/update-motd.d/35-openvpn
+              chmod 755 /etc/update-motd.d/35-openvpn
+              update-motd
+
+              /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource ClientInstance --region ${AWS::Region}
+    CreationPolicy:
+      ResourceSignal:
+        Count: "1"
+        Timeout: PT10M
+
+Outputs:
+  ClientS3Bucket:
+    Description: S3 bucket containing client configuration
+    Value: !Ref S3Bucket
+  VPNClientUserFile:
+    Description: Initial generated OVPN of client
+    Value: !Sub |
+      s3://${S3Bucket}/client/openvpn_client.ovpn
+  OpenVPNServerEIP:
+    Description: OpenVPN Server IP
+    Value: !Ref EIP
+  ClientInstanceIP:
+    Description: OpenVPN Client IP
+    Value: !GetAtt ClientInstance.PublicIp
+  OpenVPNServer:
+    Description: OpenVPN Server EC2 Instance
+    Value: !Ref OpenVPNInstance
+  ServerPrivateIP:
+    Description: OpenVPN Server EC2 Instance
+    Value: !GetAtt OpenVPNInstance.PrivateIp
+  ServerVPCID:
+    Description: VPC ID for the OpenVPN Server
+    Value: !Ref VPC
+  ServerVPCCIDR:
+    Description: CIDR Range for the OpenVPN Server VPC
+    Value: !GetAtt VPC.CidrBlock
+  ServerSubnetID:
+    Description: Subnet ID for the OpenVPN Server
+    Value: !Ref PublicSubnet
+  ServerSGID:
+    Description: Security Group ID for the OpenVPN Server
+    Value: !Ref OpenVPNSG
+  OpenVPNClient:
+    Description: OpenVPN Client EC2 Instance 
+    Value: !Ref ClientInstance

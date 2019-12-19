@@ -59,6 +59,35 @@ jobs:
           name: Logout of docker hub
           command: sudo docker logout
 
+  circleci-image-build-openvpn:
+    machine: true
+    working_directory: ~/dockers-integrations/src/openvpn
+    environment:
+      REPO_NAME: bridgecrew
+      IMAGE_NAME: openvpn-integration
+      IMAGE_VERSION: 1
+
+    steps:
+      - checkout:
+          path: ~/dockers-integrations
+      - run:
+          name: Login docker hub
+          command: |
+            docker login -u $DOCKER_USER -p $DOCKER_PASS
+      - run:
+          name: Build image
+          command: |
+            docker build . --tag $REPO_NAME/$IMAGE_NAME:$IMAGE_VERSION --tag $REPO_NAME/$IMAGE_NAME:latest --tag $REPO_NAME/$IMAGE_NAME:$IMAGE_VERSION.$CIRCLE_BUILD_NUM
+      - run:
+          name: Push Docker image
+          command: |
+            sudo docker push $REPO_NAME/$IMAGE_NAME:$IMAGE_VERSION
+            sudo docker push $REPO_NAME/$IMAGE_NAME:latest
+            sudo docker push $REPO_NAME/$IMAGE_NAME:$IMAGE_VERSION.$CIRCLE_BUILD_NUM
+      - run:
+          name: Logout of docker hub
+          command: sudo docker logout
+
   circleci-image-build-pulse:
     machine: true
     working_directory: ~/dockers-integrations/src/pulse
