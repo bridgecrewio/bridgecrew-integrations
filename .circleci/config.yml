@@ -325,6 +325,7 @@ workflows:
       - circleci-image-build-pulse
       - circleci-image-build-fortigate
       - circleci-image-build-linux-auth
+      - circleci-image-build-openvpn
       - circleci-image-build-vault
       - circleci-image-build-pan-os
       - circleci-image-build-bridgecrew-logstash
