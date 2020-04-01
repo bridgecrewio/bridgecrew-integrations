@@ -15,11 +15,11 @@ cat << EOF > /etc/rsyslog.d/01-openvpn-log.conf
 module(load="imfile")
 
 input(type="imfile"
-      File="/var/log/openvpn.log"
+      File="/var/log/openvpnas.log"
       Tag="openvpn"
 )
 
-if $programname == 'openvpn' then {
+if $programname == 'openvpnas' then {
     action(
         type="omfwd"
         Target="bridgecrew-openvpn-integration.bridgecrew.local"
