@@ -1,4 +1,4 @@
-FROM docker.elastic.co/logstash/logstash:7.1.1
+FROM docker.elastic.co/logstash/logstash:7.6.2
 
 ## DEV ONLY ##
 ##USER 0
